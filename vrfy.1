@@ -1,0 +1,301 @@
+.\"
+.\"	@(#)vrfy.1              e07@nikhef.nl (Eric Wassenaar) 971114
+.\"
+.TH vrfy 1 "971114"
+.SH NAME
+vrfy \- Verify electronic mail addresses
+.SH SYNTAX
+.B vrfy
+[\fIoptions\fP]
+[\fB\-v\fP]
+\fIaddress\fP
+[\fIhost\fP]
+.br
+.B vrfy
+[\fIoptions\fP]
+[\fB\-v\fP]
+\fB\-f\fP
+[\fIfile\fP]
+[\fIhost\fP]
+.br
+.B vrfy
+[\fIoptions\fP]
+[\fB\-v\fP]
+\fB\-p\fP
+\fIdomain\fP
+.br
+.B vrfy
+[\fIoptions\fP]
+[\fB\-v\fP]
+\fB\-T\fP
+\fIdomain\fP
+[\fIname\fP]
+.SH DESCRIPTION
+.I vrfy
+is a tool to verify electronic mail addresses.
+The only required parameter is the \fIaddress\fP to be verified.
+The actual verification will be carried out at the remote machine
+where mail to the given address would normally be delivered.
+This may be a mail exchange host and not the final destination host.
+If an explicit host is given as the second argument on the command line,
+the specified address is verified at that machine.
+.PP
+The output of the program shows whether or not the address can
+be handled at the contacted host. Error messages will be printed if
+the address is invalid. If the address is recognized, the output
+shows the remote host's notion of the (possibly translated)
+address. If it represents a local user at that host, additional
+information about the user may be displayed.
+.PP
+Note that if the address is accepted by the contacted host, but this
+is not the final destination host, one still cannot be sure that the
+address represents a valid recipient.
+.PP
+It is a handy tool to verify local mail addresses.
+.br
+If you have set up a .forward file, you can verify your own
+address to check that the forwarding is done properly.
+.br
+If you specify an arbitrary name, you can check whether this
+resolves to any valid recipients.
+.SH "SPECIAL OPERATION MODES"
+Some flags put the program in a special operation mode.
+.SS "FILE MODE"
+If the \fB\-f\fP option is specified, the program enters a special
+file mode. The (optional) parameter is the name of a \fIfile\fP
+containing electronic mail addresses, such as used for mailing lists.
+Verification of all addresses present in the file is attempted.
+If no filename is specified, vrfy acts as a filter and the addresses
+to be verified are read from standard input.
+.SS "PING MODE"
+If the \fB\-p\fP option is specified, the program enters a special
+ping mode. The required parameter is an electronic mail \fIdomain\fP
+for which it will be verified whether the corresponding mail
+exchangers are currently responding to SMTP requests.
+.SS "ETRN MODE"
+If the \fB\-T\fP option is specified, the program enters a special
+etrn mode. The required parameter is an electronic mail \fIdomain\fP.
+An ESMTP ETRN command will be delivered to its corresponding mail
+exchangers. An optional \fIname\fP is used as the ETRN parameter.
+If not specified, the local host name is used instead.
+ETRN is defined in RFC 1985, and is implemented in sendmail 8.8.
+.SS "RECURSIVE MODE"
+If the \fB\-L\fP\ \fIlevel\fP option is specified, the received
+replies to an address verification are resursively verified up to
+\fIlevel\fP levels deep. This is handy for checking mailing list
+expansions, and detecting possible mail forwarding loops.
+.sp
+Recursion stops automatically if the reply represents a local
+recipient address, or in case a forwarding loop is detected.
+If the received reply is the same (modulo comments) as the address
+that was asked for, the request is retried at its domain itself,
+unless this was the machine we just queried, or it is not an
+internet domain host.
+.sp
+The option \fB\-R\fP is equivalent to ``\fB\-L\fP\ \fI17\fP''.
+This is the maximum hop count normally used during actual mail
+relaying. This option also implies ``\fB\-s\fP''.
+.SH OPTIONS
+.TP 8
+.B \-v
+Sets verbose mode. Prints the action the program is going to take.
+.br
+If specified as \fB\-vv\fP, very verbose output is printed.
+The SMTP transactions with the remote host are shown in detail.
+.br
+If the verbose mode level is set to 3 with \fB\-vvv\fP, the
+actions taken by the remote host are shown, such as alias and
+forward expansions. This can be quite amusing. The remote host
+must support the SMTP VERB command for this to work.
+.br
+In ping mode, the verbose mode level 3 will cause an extra SMTP
+command HELO to be generated.
+.TP
+.B \-d
+Prints debugging output showing the various phases of the SMTP
+connection with the remote host. This is normally not of any
+interest. Also prints various messages that are otherwise shown
+in very verbose mode.
+.br
+If specified as \fB\-dd\fP, in addition all nameserver query
+transactions are shown in detail.
+.br
+A level 3 debug mode \fB\-ddd\fP will not make any SMTP
+connections at all.
+.TP
+.B \-a
+If multiple mail exchange hosts were found, this option will
+cause the operation to be carried out at each of these hosts.
+Normally only the primary mail exchanger is contacted.
+.TP
+.B \-l
+Sets local mode for error handling. Address syntax and parsing
+errors are handled entirely by the program. The default is to
+pass faulty addresses to the local host to get the official
+error messages.
+.TP
+.B \-s
+Strips all comments from full address specifications, and
+presents only the plain address to the remote host to be verified.
+Some hosts may get confused when a multiple bracketed address is
+presented. This option is implied when \fB\-R\fP is given.
+.TP
+.B \-e
+Uses the EXPN command instead of the VRFY command. Some systems
+may have different treatment for these commands, so this option
+may be a possible alternative.
+By sendmail V5 they are usually treated the same, but not by the
+sendmail V8 versions.
+In case treatment is different, the VRFY command will just show
+whether the presented address is valid or not, but the EXPN command
+will return alias expansions, if appropriate.
+Some systems allow VRFY, but disallow EXPN for privacy reasons.
+.TP
+.B \-h
+This option causes an SMTP HELO command to be issued to the
+contacted server before subsequent commands are attempted.
+Servers can be configured to refuse commands unless a HELO
+command is given first.
+The HELO is not issued by default, since old versions of sendmail
+refuse SMTP connections originating on the same machine (i.e. if
+the domain name in the HELO command is its own name).
+.TP
+.B \-H
+Similar to the \fB\-h\fP option, but now the ESMTP EHLO command
+is tried first. If the contacted server does not understand this,
+the SMTP HELO command is tried next.
+.TP
+.B \-n
+Many non-sendmail hosts do not, or incorrectly or incompletely,
+implement the VRFY command. Other systems have VRFY or EXPN
+disabled for privacy reasons. This option uses an alternative
+protocol suite with the regular HELO, MAIL, RCPT and RSET commands.
+This gives only a global indication whether the recipient is
+valid. Recursive mode is not possible, and will be disabled.
+.TP
+.BI \-S " sender"
+Defines an explicit envelope sender address to be used in the MAIL
+command during the alternative protocol suite, to overrule the
+default empty sender address ``<>''.
+This option implies ``\fB\-n\fP''.
+.TP
+.BI \-c " secs"
+Sets a connect timeout value to override the default timeout of 6
+seconds. This may be necessary if it takes considerable time to
+connect to the remote host.
+.TP
+.BI \-t " secs"
+Sets a read timeout value to override the default timeout of 60
+seconds. This may be necessary if it takes considerable time for
+the remote host to assemble all addresses in long mailing lists.
+.SH "DEFAULT OPTIONS"
+Default options and parameters can be preset in an environment
+variable \fBVRFY_DEFAULTS\fP using the same syntax as on the command
+line. They will be evaluated before the command line arguments.
+.SH DIAGNOSTICS
+.I vrfy
+sets up an SMTP connection with the remote host where the
+verifying is to be carried out.
+SMTP is the TCP/IP protocol for electronic mail exchange.
+.sp
+If the given host does not speak SMTP, the error message
+"Connection refused" is printed.
+.sp
+If the SMTP protocol is blocked, a "Host is unreachable"
+message is printed.
+.sp
+If the remote host doesn't respond in time, you will get
+a "Connection timed out" message.
+.sp
+The remote host must support the SMTP VRFY command for
+doing the verification. If not, a "Command not implemented"
+is printed.
+.SH STRATEGY
+The following strategy is used to find the remote host where
+the verification is to be carried out.
+.TP 4
+.B a.
+If an explicit verification host is specified, that host
+is contacted unconditionally.
+.TP
+.B b.
+If the address to be verified has no domain part after an '@' sign,
+it is supposed to be a local recipient and will be verified at the
+local host.
+.TP
+.B c.
+If the address contains a domain part after an '@' sign, mail
+exchange hosts will be fetched for that domain. If no such mail
+exchangers are found, the domain part is supposed to represent
+a specific host, and that host itself will be contacted.
+.TP
+.B d.
+If mail exchangers were found, the verification will be carried
+out at the primary mail exchange host.
+.TP
+.B e.
+If the \fB\-a\fP option was given, and multiple mail exchangers
+exist, the verification is also carried out at all other
+mail exchange hosts.
+.TP
+.B f.
+For the pseudo domains ".uucp" and ".bitnet" a specific server
+can be compiled-in. The default is to contact the local host.
+.TP
+.B g.
+If no mail exchangers were found for an unqualified single
+hostname, the local host is contacted by default. The actual
+meaning of such addresses depend on your local strategy.
+.SH ENVIRONMENT
+Environment variables can be used to overrule several
+compiled-in defaults.
+.SS VRFY_LOCALHOST
+This is your nearest host running the sendmail daemon.
+It is contacted in case local addresses without a domain are given.
+Also (unless the \fB\-l\fP is given) when domain parsing errors were
+encountered, assuming that this host can give a more appropriate
+error message.
+The default value is \fBlocalhost\fP.
+.SS VRFY_UUCPRELAY
+This host is contacted when a .uucp address is specified.
+You probably won't get much useful information.
+The default value is \fBlocalhost\fP.
+.SS VRFY_BITNETRELAY
+This host is contacted when a .bitnet or .earn address is specified.
+You probably won't get much useful information.
+The default value is \fBlocalhost\fP.
+.SS VRFY_SINGLERELAY
+This host is contacted when a single unqualified host name
+could not be resolved to a fully qualified MX domain host.
+It is assumed that single hosts in your own domain can be
+resolved, i.e. they have an MX record.
+It depends on your local strategy for unqualified hosts what they
+mean: a .uucp host, a .bitnet host, or just a local host without MX.
+The default value is \fBlocalhost\fP.
+.SH LIMITATIONS
+Some hosts have a lousy VRFY handling. Sometimes the command
+is not implemented at all. Other hosts are willing to verify
+only local recipients. The ``-n'' option may be necessary.
+.sp
+Other servers may refuse the VRFY command for privacy reasons.
+.sp
+If the verification is not performed at the final destination
+host, one cannot be sure that the given address is valid.
+.SH "MAILING LISTS"
+Note the following subtle differences if you want to check
+an existing mailing list \fIlist\fP.
+Suppose that ``\fIlist\fP\-users'' is the local alias to include
+the actual file ``/mail/lists/\fIlist\fP\-users'' with recipients.
+.sp
+The command ``vrfy\ \fIlist\fP\-users'' will verify the proper
+expansion of the mailing list at the local host. No remote
+hosts are contacted to verify addresses.
+.sp
+The command ``vrfy\ \-f\ /mail/lists/\fIlist\fP\-users'' will verify
+each individual address at the appropriate remote hosts.
+.sp
+The same effect can be reached when you give the command
+``vrfy\ \-L\ 1\ \fIlist\fP\-users''. Use a higher recursion level
+if you want to see further expansion of the mailing list.
+.SH AUTHOR
+Eric Wassenaar, Nikhef-H, <e07@nikhef.nl>
