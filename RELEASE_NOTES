@@ -1,0 +1,263 @@
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 990522
+
+	URL	ftp://ftp.nikhef.nl/pub/network/vrfy.tar.Z
+	URL	http://www.nikhef.nl/user/e07
+
+yymmdd		Description of changes per release
+TODO		Things that still need to be done
+WISHLIST	Wishes expressed by various people
+
+# ----------------------------------------------------------------------
+# Description of changes per release
+# ----------------------------------------------------------------------
+
+990522
+	Minor portability changes.
+		The BIND 4.* debugging routine p_rr() has disappeared in
+		the BIND 8.* release, and there is no simple backward
+		compatible equivalent.
+		First reported by David O'Brien <obrien@NUXI.com>
+		Also noted by Dimitrios Stergiou <dste@intranet.gr>
+
+990511
+	Minor portability changes.
+		Solaris 2.7 defines `ipaddr_t.' Can you believe it.
+		Fix glitch for bsdi.
+		Noted by Paul Eggert <eggert@twinsun.com>
+	There are no functional changes in this release.
+
+980820
+	Recognize :include: syntax.
+		Don't attempt to verify :include:s at SMTP servers.
+		They may be encountered when verifying files. Handle
+		them locally. Requires provisions for recursive calls
+		of the file scanning module.
+	Recognize /pathname and "|program" syntax.
+		Don't attempt to verify those at SMTP servers either.
+
+980626
+	Recognize new SMTP reply codes.
+		Code 521 is defined per RFC 1846 and indicates that
+		an SMTP server does not (never) accept incoming mail.
+		Code 571 is sometimes used to reject mail from banned
+		domains. Strictly speaking the code is not defined
+		and is probably mistaken for the DSN "5.7.1" status.
+		It is intercepted to avoid "Remote protocol" errors.
+	Minor portability changes.
+		Move <netdb.h> to a more appropriate place to avoid
+		BSD mode compile errors on the solaris 2.5 platform.
+		Don't declare sys_errlist on some more platforms.
+
+971114
+	Add possibility to specify envelope sender.
+		A new command line option -S specifies an explicit
+		envelope sender address for use in the SMTP MAIL FROM
+		transaction, to overrule the default empty address <>.
+		The address must conform to elementary syntax rules.
+		The -S option enforces the -n option, which causes the
+		HELO/MAIL/RCPT sequence to be carried out instead of
+		the regular VRFY or EXPN. Useful for testing purposes.
+	Check for arbitrary relay by remote server.
+		The facilities are available to check whether a remote
+		SMTP server is willing to relay mail from an arbitrary
+		sender to an arbitrary recipient.
+		The astute reader may have figured out how to do this.
+	Allow the use of vrfy as a filter.
+		If the -f option is given without an explicit filename,
+		standard input is read to fetch the target addresses.
+		From Hallvard Furuseth <h.b.furuseth@usit.uio.no>
+	Restructure handling of smtp replies.
+		Simplify code with respect to smtp state messages.
+		Simplify implementation on whether to process replies.
+		Distinguish between first reply line and continuations.
+		Take proper care of I/O output errors.
+	Minor portability changes.
+		Identify SVR4 platforms depending on cpp symbols,
+		which are different for various compilers.
+	Minor portability changes.
+		Move <netdb.h> to a more appropriate place to avoid
+		BSD mode compile errors on the solaris 2.5 platform.
+	Miscellaneous changes.
+		Various esthetical code changes.
+
+971007
+	Reconsider heuristic to determine BIND release.
+		Some vendors still ship new BIND 4.9 releases that have
+		the old struct ``state'' instead of ``__res_state''.
+		This is now controlled via Makefile CONFIGDEFS.
+	There are no functional changes in this release.
+
+970930
+	Minor portability fixes.
+		On some platforms sys_errlist is a (const char *).
+		Use explicit casts in assignments and function returns
+		to avoid compiler warnings.
+	Miscellaneous changes.
+		Minor esthetical code changes.
+
+970922
+	Portability fix.
+		On some platforms, sys_errlist has already been defined
+		in <errno.h> and must not be declared again in stat.c.
+		Reported for FreeBSD by Bruno Rohee <brohee@iway.fr>
+	Backward compatibility fix.
+		Some vendors still ship old BIND 4.9 releases that have
+		the old struct ``state'' instead of ``__res_state''.
+		From Jan Hendrik Peters <petersjh@mail.desy.de> for AIX.
+	Minor portability fixes.
+		Properly identify certain platforms in port.h to avoid
+		compiler warnings.
+
+970828
+	Linux portability fixes.
+		On some linux platforms h_name is a (const char *).
+		Use explicit casts in assignments and function returns
+		to avoid compiler warnings.
+	Minor portability fixes.
+		Use explicit casts for ntohs()/htons() in a few places
+		to avoid compiler warnings on some platforms.
+	There are no functional changes in this release.
+
+961113
+	Portability fix.
+		Trying to include <strings.h> was a bit over-ambitious
+		and caused confusion on some platforms.
+	There are no functional changes in this release.
+
+961013
+	Bug fix.
+		Fix parsespec() handling of source routes and uucp bang
+		paths. Must copy plain address before checking domain.
+		Bug was introduced in version 961006.
+	Minor fixes.
+		Improve interrupt and error handling in I/O routines.
+		Reject MX records of the wrong resource record class.
+	Miscellaneous changes.
+		Attempt to further reduce lint clutter. It is difficult
+		to eliminate this altogether. There are too many subtle
+		differences between various platforms.
+
+961006
+	Support for ESMTP EHLO command.
+		Optionally use the ESMTP EHLO command instead of HELO.
+		This is forced via the new -H command line option.
+	Support for ESMTP ETRN command.
+		A new -T option enables special ETRN processing at the
+		mx hosts for a given domain. See RFC 1985 for details.
+		Suggested by Robert Harker <harker@harker.com>
+	Configurable default options.
+		Use an environment variable VRFY_DEFAULTS to set
+		default options and parameters. These are interpolated
+		in front of the command line arguments before scanning.
+		Syntax is the same as the command line syntax.
+	More environment variables.
+		Use environment variables to overrule the compiled-in
+		names of the local mail host and several relay hosts.
+	More configurable defaults.
+		The default compiled-in connect and read timeout are
+		now configurable in conf.h.
+	Properly handle tcp packet overflow.
+		If the supplied answer buffer space is insufficient to
+		store the entire answer, res_send() is supposed to
+		return the length of the entire untruncated answer, not
+		the number of bytes that are actually available.
+	Increase MAXPACKET packet buffer size.
+		The traditional value 1024 for the (tcp) packet size is
+		no longer sufficient (see moderators.uu.net MX records).
+		This is now set to the maximum value used internally
+		by the BIND named. The same value is used by dig.
+		Although still static, it should be sufficient.
+	Extra safety checks.
+		After a positive return from an ordinary gethostbyname
+		or gethostbyaddr we cannot be absolutely sure that the
+		size of the canonical h_name is within bounds.
+	Attempt to recognize list (group) syntax.
+		Not many smtp servers are able to handle this properly.
+		Try to extract the pure address list from this syntax.
+	Better diagnose SMTP reply codes.
+		Code 252 was added per RFC 1123 to reject an SMTP VRFY
+		command. This has been implemented by sendmail V8.
+		Consider only 250 and 251 as valid responses.
+	Minor changes.
+		Check some more SMTP reply codes.
+		Guard against potential buffer overflow in some places.
+		Make some extra domain name syntax checks.
+	Miscellaneous cleanup.
+		Update pieces of code and header files to be similar to
+		those used in the host/ping/traceroute utilities.
+		Add various BIND portability fixes.
+	Update manual page.
+		Document the old -h option and the new -H option.
+		Document the new -T option for ETRN processing.
+		Document the new environment variables.
+
+950410
+	Increase various constants.
+		Change MAXSPEC from 256 to 512.
+		Change MAXMXHOSTS from 10 to 20 conforming to sendmail.
+	Refine test for invalid address.
+		Disallow only unquoted control characters.
+		No embedded newlines without linear white space.
+	Add smtprset().
+		Issue an SMTP RSET command after MAIL and RCPT during
+		the alternative protocol suite, to reset the session.
+	Miscellaneous glitches.
+		Properly allocate static storage for mx host names.
+		Allow DNS name expansion up to MAXHOST characters.
+		Explicitly call res_init() early in the game.
+	Added this RELEASE_NOTES file.
+
+940929
+	Various portability changes.
+		Avoid use of sizeof() for all entities that have a fixed
+		field width, and use predefined constants instead. This
+		is necessary for systems without 16 or 32 bit integers.
+		Fix use of ipaddr_t and struct in_addr appropriately.
+		All this makes the utility portable to e.g. Cray.
+
+940525
+	General portability changes.
+		Adapt for DEC Alpha OSF/1, and BIND 4.9.
+		Add header files port.h conf.h exit.h
+	Miscellaneous additions.
+		Configure relay host for unresolved single hostnames.
+		Handle 8-bit characters and sendmail V8 meta-chars.
+		Some error messages slightly modified.
+		In exit status, temp failures override hard failures.
+
+921021
+	Miscellaneous declaration changes.
+	Add -e option for expn instead of vrfy.
+	Various sanity checks.
+	Fix bug in recursion: save old host.
+	Add version number to all files.
+
+920229
+	Support parsing of full addresses.
+	Add -f option to verify address files.
+	Add -l option to handle errors locally.
+	Implement recursive mode.
+	Detect forwarding loops.
+	Add -s option to strip comments.
+	Improve recursive loop strategy.
+	Add undocumented -h -o -m -r options.
+	Add -n option for alternative suite.
+
+911216
+	Fetch MX records and verify remotely.
+	Catch special pseudo-domains.
+	Add -c option to set connect timeout.
+	Add -p option to ping mx hosts.
+
+910617
+	Add -t option to set read timeout.
+	Save errno across smtpquit() calls.
+
+# ----------------------------------------------------------------------
+# TODO
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# WISHLIST
+# ----------------------------------------------------------------------
+
