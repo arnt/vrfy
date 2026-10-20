@@ -226,6 +226,7 @@ extern char *MxHosts[MAXMXHOSTS];	/* names of mx hosts found */
 
 extern int ConnTimeout;		/* -c  timeout in secs for connect() */
 extern int ReadTimeout;		/* -t  timeout in secs for sfgets() */
+extern int SmtpReplyCode;	/* reply code of the last smtp reply */
 
 extern char *MyHostName;	/* my own fully qualified host name */
 extern char *version;		/* program version number */
@@ -1445,7 +1446,59 @@ vrfyhost(
 	if (reply == EX_SUCCESS)
 		reply = smtpvrfy(address);
 
+	if ((reply == EX_SUCCESS && SmtpReplyCode == 252) ||
+	    (reply == EX_NOUSER && SmtpReplyCode == 550))
+		reply = rcptfallback(address);
+
 	(void) smtpquit();
+	return(reply);
+}
+
+/*
+** RCPTFALLBACK -- Retry with MAIL/RCPT after VRFY gave no answer
+** ---------------------------------------------------------------
+**
+**	Returns:
+**		Status code of smtp transaction.
+**
+**	252 means the server will not say whether the address is
+**	valid. Some servers say 550 to every VRFY for the same reason,
+**	so we treat 550 like 252, at the cost of asking twice about
+**	addresses that really are unknown.
+**	We continue the session as if -n had been given.
+**	Recursion is disabled meanwhile, since RCPT replies do not
+**	contain addresses.
+*/
+
+int
+rcptfallback(
+	char *address)			/* address to be verified */
+{
+	int saverecursive = recursive;
+	register int reply;
+
+	message("050 VRFY gave no answer, trying RCPT");
+
+	(void) smtprset();
+
+	reply = EX_SUCCESS;
+	if (!helomode)
+	{
+		setmyhostname();
+		reply = smtphelo(MyHostName, TRUE);
+	}
+
+	recursive = 0;
+
+	if (reply == EX_SUCCESS)
+		reply = smtpmail((FromAddr == NULL) ? "" : FromAddr);
+
+	if (reply == EX_SUCCESS)
+		reply = smtprcpt(address);
+
+	(void) smtprset();
+
+	recursive = saverecursive;
 	return(reply);
 }
 

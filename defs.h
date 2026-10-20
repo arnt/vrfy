@@ -28,6 +28,7 @@ void etrn		PROTO((char *, char *));
 void ping		PROTO((char *));
 int verify		PROTO((char *, char *));
 int vrfyhost		PROTO((char *, char *));
+int rcptfallback	PROTO((char *));
 int expnhost		PROTO((char *, char *));
 int rcpthost		PROTO((char *, char *));
 int etrnhost		PROTO((char *, char *));

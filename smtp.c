@@ -45,6 +45,7 @@ FILE *SmtpIn  = NULL;		/* smtp input channel */
 char *SmtpPhase = NULL;		/* connection state message */
 int SmtpState = SMTP_CLOSED;	/* current connection state */
 int SmtpErrno = 0;		/* saved errno from system calls */
+int SmtpReplyCode = 0;		/* reply code of the last valid reply */
 
 char *SmtpCrLf = "\r\n";	/* smtp end-of-line terminator */
 
@@ -734,6 +735,7 @@ smtpreply(
 
 		/* valid reply code received */
 		SmtpErrno = 0;
+		SmtpReplyCode = r;
 		return(r);
 	}
 	/*NOTREACHED*/
