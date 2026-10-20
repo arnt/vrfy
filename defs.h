@@ -29,6 +29,7 @@ void ping		PROTO((char *));
 int verify		PROTO((char *, char *));
 int vrfyhost		PROTO((char *, char *));
 int rcptfallback	PROTO((char *));
+int greet		PROTO((void));
 int expnhost		PROTO((char *, char *));
 int rcpthost		PROTO((char *, char *));
 int etrnhost		PROTO((char *, char *));
@@ -52,16 +53,16 @@ char *cataddr		PROTO((char *, char *, char *));
 	/* smtp.c */
 
 int smtpinit		PROTO((char *));
-int smtphelo		PROTO((char *, bool));
+int smtphelo		PROTO((char *, bool, bool));
 int smtpehlo		PROTO((char *));
 int smtponex		PROTO((void));
 int smtpverb		PROTO((char *));
 int smtpetrn		PROTO((char *));
 int smtprset		PROTO((void));
-int smtpmail		PROTO((char *));
+int smtpmail		PROTO((char *, bool));
 int smtprcpt		PROTO((char *));
-int smtpexpn		PROTO((char *));
-int smtpvrfy		PROTO((char *));
+int smtpexpn		PROTO((char *, bool));
+int smtpvrfy		PROTO((char *, bool));
 int smtpdata		PROTO((void));
 int smtpbody		PROTO((void));
 int smtpquit		PROTO((void));
@@ -95,6 +96,10 @@ char *maxstr		PROTO((char *, int, bool));
 char *printable		PROTO((char *));
 ptr_t *xalloc		PROTO((ptr_t *, siz_t));
 char *itoa		PROTO((int));
+bool nonascii		PROTO((char *));
+bool validutf8		PROTO((char *));
+char *alabel		PROTO((char *));
+char *ulabel		PROTO((char *));
 
 /*
 ** External library functions

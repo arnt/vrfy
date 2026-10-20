@@ -27,6 +27,7 @@
 #undef NOERROR			/* in <sys/streams.h> on solaris 2.x */
 #include <arpa/nameser.h>
 #include <resolv.h>
+#include <idn2.h>
 
 #include "port.h"		/* various portability definitions */
 #include "conf.h"		/* various configuration definitions */
@@ -54,9 +55,6 @@
 
 /* check for linear white space */
 #define is_lwsp(c)	(((c) == ' ') || ((c) == '\t'))
-
-/* sendmail V8 meta-characters */
-#define is_meta(c)	(((c) & 0340) == 0200)
 
 /* special address syntax */
 #define file_addr(a)	((a)[0] == '/')

@@ -149,11 +149,13 @@ makeconnection(
 
 		hp = gethostbyaddr((char *)&inaddr[0], INADDRSZ, AF_INET);
 		if (hp != NULL)
-			host = (char *)hp->h_name;
+			host = ulabel((char *)hp->h_name);
 	}
 	else
 	{
-		hp = gethostbyname(host);
+		hp = NULL;
+		if (alabel(host) != NULL)
+			hp = gethostbyname(alabel(host));
 		if (hp == NULL)
 		{
 			/* cannot contact nameserver, force retry */
@@ -167,7 +169,7 @@ makeconnection(
 			/* no address found by nameserver */
 			return(EX_NOHOST);
 		}
-		host = (char *)hp->h_name;
+		host = ulabel((char *)hp->h_name);
 
 		for (i = 0; i < MAXADDRS && hp->h_addr_list[i]; i++)
 			inaddr[i] = incopy(hp->h_addr_list[i]);
@@ -362,7 +364,9 @@ internet(
 		return(TRUE);
 
 	/* check if nameserver can resolve it */
-	hp = gethostbyname(host);
+	if (alabel(host) == NULL)
+		return(FALSE);
+	hp = gethostbyname(alabel(host));
 	if (hp != NULL)
 		return(TRUE);
 

@@ -426,10 +426,18 @@ invalidaddr(
 	register char *p;
 	register char c;
 
+	/* non-ascii must be utf-8 (RFC6531) */
+	if (!validutf8(addrspec))
+	{
+		usrerr("Malformed UTF-8 in address");
+		return(TRUE);
+	}
+
 	for (p = addrspec; (c = *p) != '\0'; p++)
 	{
-		/* always reject special metacharacters */
-		if (is_meta(c))
+		/* always reject C1 control characters */
+		if ((u_char)c == 0xC2 && (u_char)p[1] >= 0x80 &&
+		    (u_char)p[1] <= 0x9F)
 			break;
 
 		/* reject embedded newlines without lwsp */
@@ -447,7 +455,7 @@ invalidaddr(
 			continue;
 		else
 		{
-			/* non-ascii for ordinary 8-bit characters */
+			/* non-ascii is checked above */
 			if (!isascii(c))
 				continue;
 
@@ -529,8 +537,16 @@ invalidhost(
 	if (numeric_addr(domain) != NOT_DOTTED_QUAD)
 		return(FALSE);
 
+	/* an idn is checked in the form used in the dns */
+	p = alabel(domain);
+	if (p == NULL)
+	{
+		usrerr("Invalid domain name");
+		return(TRUE);
+	}
+
 	/* check for invalid embedded characters */
-	for (p = domain; *p != '\0'; p++)
+	for (; *p != '\0'; p++)
 	{
 		/* only alphanumeric plus dot and dash allowed */
 		if (!is_alnum(*p) && *p != '.' && *p != '-')

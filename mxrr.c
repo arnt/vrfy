@@ -74,6 +74,7 @@ getmxbyname(
 	u_short pref;			/* mx preference value */
 	u_short prefer[MAXMXHOSTS];	/* saved preferences of mx records */
 	char *bp;			/* hostbuf pointer */
+	char *ul;			/* readable form of mx host */
 	int nmx;			/* number of mx hosts found */
 	int nnull;			/* number of null mx records found */
 	register int i;
@@ -85,6 +86,13 @@ getmxbyname(
  */
 	errno = 0;			/* reset before querying nameserver */
 	h_errno = 0;
+
+	domain = alabel(domain);
+	if (domain == NULL)
+	{
+		h_errno = NO_RECOVERY;
+		return(0);
+	}
 
 	n = res_search(domain, C_IN, T_MX, (u_char *)&answer, sizeof(answer));
 	if (n < 0)
@@ -177,6 +185,11 @@ getmxbyname(
 			nnull++;
 			continue;
 		}
+
+		/* ulabel() never returns anything longer than MAXHOST */
+		ul = ulabel(bp);
+		if (ul != bp)
+			(void) strcpy(bp, ul);
 
 		prefer[nmx] = pref;
 		MxHosts[nmx] = bp;

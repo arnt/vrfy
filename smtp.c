@@ -46,6 +46,10 @@ char *SmtpPhase = NULL;		/* connection state message */
 int SmtpState = SMTP_CLOSED;	/* current connection state */
 int SmtpErrno = 0;		/* saved errno from system calls */
 int SmtpReplyCode = 0;		/* reply code of the last valid reply */
+bool SmtpUtf8 = FALSE;		/* server announced SMTPUTF8, if set */
+bool SmtpNoUtf8 = FALSE;	/* refused server for lacking it, if set */
+
+static bool EhloWait = FALSE;	/* reading the EHLO reply, if set */
 
 char *SmtpCrLf = "\r\n";	/* smtp end-of-line terminator */
 
@@ -71,6 +75,8 @@ smtpinit(
 	SmtpState = SMTP_CLOSED;
 	SmtpErrorBuffer[0] = '\0';
 	SmtpErrno = 0;
+	SmtpUtf8 = FALSE;
+	SmtpNoUtf8 = FALSE;
 
 	SmtpPhase = "connect";
 	if (debug)
@@ -102,6 +108,8 @@ smtpinit(
 ** ----------------------------------
 **
 **	In ESMTP mode, first try the EHLO command.
+**	In UTF-8 mode, EHLO is required, and the server must announce
+**	SMTPUTF8 (RFC6531).
 **
 **	Returns:
 **		Status code indicating success or failure.
@@ -110,9 +118,21 @@ smtpinit(
 int
 smtphelo(
 	char *name,			/* my own fully qualified hostname */
-	bool esmtp)			/* try EHLO first, if set */
+	bool esmtp,			/* try EHLO first, if set */
+	bool utf8)			/* require SMTPUTF8, if set */
 {
 	register int r;
+
+	if (utf8)
+	{
+		r = smtpehlo(name);
+		if (r == EX_UNAVAILABLE || (r == EX_SUCCESS && !SmtpUtf8))
+		{
+			SmtpNoUtf8 = TRUE;
+			return(EX_UNAVAILABLE);
+		}
+		return(r);
+	}
 
 	if (esmtp)
 	{
@@ -153,7 +173,9 @@ smtpehlo(
 
 	smtpmessage("EHLO %s", name);
 
+	EhloWait = TRUE;
 	r = smtpreply("EHLO wait", FALSE);
+	EhloWait = FALSE;
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -235,7 +257,8 @@ smtpetrn(
 {
 	register int r;
 
-	smtpmessage("ETRN %s", name);
+	/* SMTPUTF8 does not cover ETRN, so use the ascii form */
+	smtpmessage("ETRN %s", alabel(name) ? alabel(name) : name);
 
 	r = smtpreply("ETRN wait", FALSE);
 
@@ -290,11 +313,12 @@ smtprset(void)
 
 int
 smtpmail(
-	char *address)			/* sender address specification */
+	char *address,			/* sender address specification */
+	bool utf8)			/* add SMTPUTF8 parameter, if set */
 {
 	register int r;
 
-	smtpmessage("MAIL From:<%s>", address);
+	smtpmessage("MAIL From:<%s>%s", address, utf8 ? " SMTPUTF8" : "");
 
 	r = smtpreply("MAIL wait", FALSE);
 
@@ -374,11 +398,12 @@ smtprcpt(
 
 int
 smtpexpn(
-	char *address)			/* address to be verified */
+	char *address,			/* address to be verified */
+	bool utf8)			/* add SMTPUTF8 parameter, if set */
 {
 	register int r;
 
-	smtpmessage("EXPN %s", address);
+	smtpmessage("EXPN %s%s", address, utf8 ? " SMTPUTF8" : "");
 
 	r = smtpreply("EXPN wait", TRUE);
 
@@ -418,11 +443,12 @@ smtpexpn(
 
 int
 smtpvrfy(
-	char *address)			/* address to be verified */
+	char *address,			/* address to be verified */
+	bool utf8)			/* add SMTPUTF8 parameter, if set */
 {
 	register int r;
 
-	smtpmessage("VRFY %s", address);
+	smtpmessage("VRFY %s%s", address, utf8 ? " SMTPUTF8" : "");
 
 	r = smtpreply("VRFY wait", TRUE);
 
@@ -716,6 +742,12 @@ smtpreply(
 		/* process response if requested */
 		if (check)
 			response(buf);
+
+		/* the lines after the first in an EHLO reply are keywords */
+		if (EhloWait && r == 250 && buf != SmtpReplyBuffer &&
+		    buf[3] != '\0' && strncasecmp(&buf[4], "SMTPUTF8", 8) == 0 &&
+		    (buf[12] == '\0' || buf[12] == ' '))
+			SmtpUtf8 = TRUE;
 
 		/* if continuation is required, we can go on */
 		if (buf[3] == '-')

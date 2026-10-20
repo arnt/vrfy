@@ -103,7 +103,10 @@ COMPLIB =
 LIBS = -lsocket -lnsl			#if defined(solaris) && not BSD
 LIBS =
 
-LIBRARIES = $(RES) $(COMPLIB) $(LIBS)
+# libidn2 converts internationalized domain names for the DNS.
+IDNLIB = -lidn2
+
+LIBRARIES = $(RES) $(COMPLIB) $(IDNLIB) $(LIBS)
 
 LDFLAGS =
 

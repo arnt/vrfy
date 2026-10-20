@@ -28,6 +28,7 @@ extern int SmtpErrno;		/* saved errno from system calls */
 extern char *SmtpPhase;		/* connection state message */
 extern char *CurHostName;	/* remote host that is being contacted */
 extern char SmtpErrorBuffer[];	/* smtp temporary failure message */
+extern bool SmtpNoUtf8;		/* server refused for lacking SMTPUTF8 */
 
 
 /*
@@ -192,6 +193,13 @@ giveresponse(
 			p = "Nameserver lookup failure";
 
 		(void) sprintf(buf, "%s (%s)", statstring(stat), p);
+	}
+	else if (stat == EX_UNAVAILABLE && SmtpNoUtf8 && CurHostName != NULL)
+	{
+		/* only once, the flag outlives the connection */
+		(void) snprintf(buf, sizeof(buf), "%s (%s does not support %s)",
+			statstring(stat), CurHostName, "SMTPUTF8");
+		SmtpNoUtf8 = FALSE;
 	}
 	else
 		(void) sprintf(buf, "%s", statstring(stat));

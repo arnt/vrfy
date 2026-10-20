@@ -211,6 +211,7 @@ bool onexmode = FALSE;		/* -o  issue ONEX command, if set */
 bool expnmode = FALSE;		/* -e  use EXPN instead of VRFY, if set */
 bool rcptmode = FALSE;		/* -r  use RCPT instead of VRFY, if set */
 bool datamode = FALSE;		/* -M  add DATA after MAIL/RCPT, if set */
+bool utf8mode = FALSE;		/* address needs SMTPUTF8, if set */
 
 char *ReplyList[MAXREPLY];	/* saved address expansions */
 int ReplyCount = 0;		/* number of valid replies */
@@ -344,6 +345,8 @@ main(int argc, char *argv[])
 	    	    case 'S':		/* explicit envelope sender address */
 			if (argv[2] == NULL || argv[2][0] == '-')
 				fatal("Missing sender address");
+			if (!validutf8(argv[2]))
+				fatal("Malformed UTF-8 in sender address");
 			FromAddr = setsender(argv[2]);
 			if (FromAddr == NULL)
 				fatal("Invalid sender address");
@@ -1038,6 +1041,17 @@ list(
 	extern char *DelimAddr;		/* position of next address in list */
 
 /*
+ * Non-ascii must be well-formed UTF-8 (RFC6531). Abort if not.
+ */
+	if (!validutf8(addrlist))
+	{
+		AddrSpec = addrlist;
+		SuprErrs = FALSE;
+		usrerr("Malformed UTF-8");
+		exit(EX_DATAERR);
+	}
+
+/*
  * Query explicit host if specified.
  * No parsing of the address list will be done in this case.
  * This requires some extra sanity checks to be done in verify.
@@ -1392,6 +1406,12 @@ verify(
 		return(EX_USAGE);
 
 /*
+ * Non-ascii in the address or the sender requires SMTPUTF8.
+ */
+	utf8mode = nonascii(address) ||
+		(FromAddr != NULL && nonascii(FromAddr));
+
+/*
  * Carry out the RCPT or EXPN or VRFY protocol as requested.
  */
 	if (rcptmode)
@@ -1434,8 +1454,8 @@ vrfyhost(
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_SUCCESS && helomode)
-		reply = smtphelo(MyHostName, ehlomode);
+	if (reply == EX_SUCCESS && (helomode || utf8mode))
+		reply = greet();
 
 	if (reply == EX_SUCCESS && onexmode)
 		reply = smtponex();
@@ -1444,7 +1464,7 @@ vrfyhost(
 		reply = smtpverb("on");
 
 	if (reply == EX_SUCCESS)
-		reply = smtpvrfy(address);
+		reply = smtpvrfy(address, utf8mode);
 
 	if ((reply == EX_SUCCESS && SmtpReplyCode == 252) ||
 	    (reply == EX_NOUSER && SmtpReplyCode == 550))
@@ -1482,16 +1502,16 @@ rcptfallback(
 	(void) smtprset();
 
 	reply = EX_SUCCESS;
-	if (!helomode)
+	if (!helomode && !utf8mode)
 	{
 		setmyhostname();
-		reply = smtphelo(MyHostName, TRUE);
+		reply = smtphelo(MyHostName, TRUE, FALSE);
 	}
 
 	recursive = 0;
 
 	if (reply == EX_SUCCESS)
-		reply = smtpmail((FromAddr == NULL) ? "" : FromAddr);
+		reply = smtpmail((FromAddr == NULL) ? "" : FromAddr, utf8mode);
 
 	if (reply == EX_SUCCESS)
 		reply = smtprcpt(address);
@@ -1503,6 +1523,23 @@ rcptfallback(
 }
 
 /*
+** GREET -- Issue the HELO or EHLO command for an address
+** ------------------------------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+**
+**	A non-ascii address needs EHLO and SMTPUTF8 (RFC6531).
+*/
+
+int
+greet(void)
+{
+	setmyhostname();
+	return(smtphelo(MyHostName, ehlomode || utf8mode, utf8mode));
+}
+
+/*
 ** EXPNHOST -- Verify an address at a given remote smtp host
 ** ---------------------------------------------------------
 **
@@ -1533,8 +1570,8 @@ expnhost(
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_SUCCESS && helomode)
-		reply = smtphelo(MyHostName, ehlomode);
+	if (reply == EX_SUCCESS && (helomode || utf8mode))
+		reply = greet();
 
 	if (reply == EX_SUCCESS && onexmode)
 		reply = smtponex();
@@ -1543,7 +1580,7 @@ expnhost(
 		reply = smtpverb("on");
 
 	if (reply == EX_SUCCESS)
-		reply = smtpexpn(address);
+		reply = smtpexpn(address, utf8mode);
 
 	(void) smtpquit();
 	return(reply);
@@ -1578,8 +1615,8 @@ rcpthost(
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_SUCCESS && helomode)
-		reply = smtphelo(MyHostName, ehlomode);
+	if (reply == EX_SUCCESS && (helomode || utf8mode))
+		reply = greet();
 
 	if (reply == EX_SUCCESS && onexmode)
 		reply = smtponex();
@@ -1588,7 +1625,7 @@ rcpthost(
 		reply = smtpverb("on");
 
 	if (reply == EX_SUCCESS)
-		reply = smtpmail((FromAddr == NULL) ? "" : FromAddr);
+		reply = smtpmail((FromAddr == NULL) ? "" : FromAddr, utf8mode);
 
 	if (reply == EX_SUCCESS)
 		reply = smtprcpt(address);
@@ -1631,7 +1668,7 @@ etrnhost(
 	reply = smtpinit(host);
 
 	if (reply == EX_SUCCESS && helomode)
-		reply = smtphelo(MyHostName, ehlomode);
+		reply = smtphelo(MyHostName, ehlomode, FALSE);
 
 	if (reply == EX_SUCCESS && verbose >= 3)
 		reply = smtpverb("on");
@@ -1671,7 +1708,7 @@ pinghost(
 	reply = smtpinit(host);
 
 	if (reply == EX_SUCCESS && (helomode || verbose >= 3))
-		reply = smtphelo(MyHostName, ehlomode);
+		reply = smtphelo(MyHostName, ehlomode, FALSE);
 
 	(void) smtpquit();
 	return(reply);
