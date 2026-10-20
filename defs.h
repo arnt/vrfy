@@ -33,6 +33,7 @@ int rcpthost		PROTO((char *, char *));
 int etrnhost		PROTO((char *, char *));
 int pinghost		PROTO((char *));
 int getmxhosts		PROTO((char *));
+void nullmx		PROTO((char *));
 char *setsender		PROTO((char *));
 
 	/* pars.c */

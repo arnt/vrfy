@@ -1185,9 +1185,18 @@ vrfy(
 	}
 
 /*
- * Query address host itself if no mx hosts found.
+ * Give up if the domain does not accept mail at all.
  */
 	nmx = getmxhosts(domain);
+	if (nmx < 0)
+	{
+		nullmx(domain);
+		return;
+	}
+
+/*
+ * Query address host itself if no mx hosts found.
+ */
 	if (nmx < 1)
 	{
 		host = hostbuf;
@@ -1249,9 +1258,18 @@ etrn(
 	}
 
 /*
- * Etrn address host itself if no mx hosts found.
+ * Give up if the domain does not accept mail at all.
  */
 	nmx = getmxhosts(domain);
+	if (nmx < 0)
+	{
+		nullmx(domain);
+		return;
+	}
+
+/*
+ * Etrn address host itself if no mx hosts found.
+ */
 	if (nmx < 1)
 	{
 		host = domain;
@@ -1306,9 +1324,18 @@ ping(
 	}
 
 /*
- * Ping address host itself if no mx hosts found.
+ * Give up if the domain does not accept mail at all.
  */
 	nmx = getmxhosts(domain);
+	if (nmx < 0)
+	{
+		nullmx(domain);
+		return;
+	}
+
+/*
+ * Ping address host itself if no mx hosts found.
+ */
 	if (nmx < 1)
 	{
 		host = domain;
@@ -1603,6 +1630,7 @@ pinghost(
 **
 **	Returns:
 **		Number of mx hosts successfully found.
+**		-1 if the domain has a null MX.
 **
 **	Outputs:
 **		Global table MxHosts[] contains list of host names.
@@ -1644,6 +1672,8 @@ getmxhosts(
 	nmx = getmxbyname(domain);
 	if (nmx > 0)
 		return(vrfyall ? nmx : 1);
+	if (nmx < 0)
+		return(nmx);
 
 /*
  * Unresolved single undomained hosts go to the single relay.
@@ -1666,6 +1696,30 @@ getmxhosts(
 }
 
 /*
+** NULLMX -- Report a domain that has a null MX
+** --------------------------------------------
+**
+**	Returns:
+**		None.
+**
+**	Side effects:
+**		Updates the overall result status.
+**
+**	556 is the reply code RFC7505 suggests for this case.
+*/
+
+void
+nullmx(
+	char *domain)			/* domain with a null mx */
+{
+	if (!tempfail(ExitStat))
+		ExitStat = EX_UNAVAILABLE;
+
+	message("556 The domain %s declares that it has %s.",
+		domain, "no valid email addresses");
+}
+
+/*
 ** SETSENDER -- Define an explicit envelope sender address
 ** -------------------------------------------------------
 **

@@ -56,6 +56,7 @@ char *dbprefix = DBPREFIX;	/* prefix for debug messages to stdout */
 **
 **	Returns:
 **		Number of mx hosts found.
+**		-1 if the domain has only a null MX (RFC7505).
 **
 **	Outputs:
 **		The global array MxHosts contains the mx names.
@@ -74,6 +75,7 @@ getmxbyname(
 	u_short prefer[MAXMXHOSTS];	/* saved preferences of mx records */
 	char *bp;			/* hostbuf pointer */
 	int nmx;			/* number of mx hosts found */
+	int nnull;			/* number of null mx records found */
 	register int i;
 	register int j;
 	register int n;
@@ -128,6 +130,7 @@ getmxbyname(
  * Loop through the answer buffer and extract mx records.
  */
 	nmx = 0;
+	nnull = 0;
 	bp = hostbuf;
 
 	while (ancount-- > 0 && cp < eom && nmx < MAXMXHOSTS)
@@ -168,6 +171,13 @@ getmxbyname(
 			break;
 		cp += n;
 
+		/* the root domain as exchange is a null mx */
+		if (bp[0] == '\0')
+		{
+			nnull++;
+			continue;
+		}
+
 		prefer[nmx] = pref;
 		MxHosts[nmx] = bp;
 		nmx++;
@@ -175,6 +185,13 @@ getmxbyname(
 		n = strlength(bp) + 1;
 		bp += n;
 	}
+
+/*
+ * A null MX must be alone. If there are real mx hosts as well,
+ * we ignore the null MX and use those.
+ */
+	if (nmx == 0 && nnull > 0)
+		return(-1);
 
 /*
  * Sort all records by preference.
