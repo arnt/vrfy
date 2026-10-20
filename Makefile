@@ -30,10 +30,6 @@ SYSDEFS = -DSYSV
 SYSDEFS = -DSYSV
 #endif
  
-#if defined(solaris) && You are using its default broken resolver library
-SYSDEFS = -DNO_YP_LOOKUP
-#endif
-
 SYSDEFS =
 
 # ----------------------------------------------------------------------

@@ -30,10 +30,6 @@
 #define	INT32SZ		4	/* for systems without 32-bit ints */
 #endif
 
-#ifndef INADDRSZ
-#define	INADDRSZ	4	/* for sizeof(struct inaddr) != 4 */
-#endif
-
 /*
 ** The following should depend on existing definitions.
 */
@@ -60,10 +56,5 @@ typedef void	ptr_t;		/* generic pointer type */
 typedef size_t	siz_t;		/* general size type */
 
 #define linebufmode(a)	(void) setvbuf(a, (char *)NULL, _IOLBF, BUFSIZ);
-
-#if defined(sun) && defined(NO_YP_LOOKUP)
-#define gethostbyname	(struct hostent *)res_gethostbyname
-#define gethostbyaddr	(struct hostent *)res_gethostbyaddr
-#endif
 
 #define PROTO(TYPES)	TYPES

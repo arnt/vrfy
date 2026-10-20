@@ -27,7 +27,6 @@ static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 970826";
 extern int verbose;
 extern int debug;
 
-#define incopy(a)	*((struct in_addr *)(a))
 #define setalarm(n)	(void) alarm((unsigned int)(n))
 
 char *CurHostName = NULL;	/* remote host we are connecting to */
@@ -93,6 +92,56 @@ sfgets(
 }
 
 /*
+** LOOKUP -- Fetch the ipv4 and ipv6 addresses of a host
+** -----------------------------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+**
+**	Outputs:
+**		Sets res to the address list, which the caller frees.
+**		Sets h_errno for giveresponse().
+*/
+
+static int
+lookup(
+	char *host,			/* host name to look up */
+	struct addrinfo **res)		/* resulting address list */
+{
+	struct addrinfo hints;
+	int status;
+
+	(void) memset((char *)&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_CANONNAME;
+
+	errno = 0;
+	h_errno = 0;
+
+	status = EAI_NONAME;
+	if (alabel(host) != NULL)
+		status = getaddrinfo(alabel(host), NULL, &hints, res);
+	if (status == 0)
+		return(EX_SUCCESS);
+
+	/* cannot contact nameserver, force retry */
+	if (status == EAI_AGAIN || errno == ETIMEDOUT || errno == ECONNREFUSED)
+	{
+		h_errno = TRY_AGAIN;
+		return(EX_TEMPFAIL);
+	}
+
+	/* no address found by nameserver */
+#ifdef EAI_NODATA
+	h_errno = (status == EAI_NODATA) ? NO_ADDRESS : HOST_NOT_FOUND;
+#else
+	h_errno = HOST_NOT_FOUND;
+#endif
+	return(EX_NOHOST);
+}
+
+/*
 ** MAKECONNECTION -- Establish SMTP connection to remote host
 ** ----------------------------------------------------------
 **
@@ -102,6 +151,8 @@ sfgets(
 **	Outputs:
 **		Sets outfile and infile to the output and input channel.
 **		Sets CurHostName to the name of the remote host.
+**
+**	IPv6 addresses are tried before IPv4 addresses.
 */
 
 int
@@ -110,20 +161,24 @@ makeconnection(
 	FILE **outfile,			/* smtp output channel */
 	FILE **infile)			/* smtp input channel */
 {
-	struct hostent *hp;
+	static int family[] = { AF_INET6, AF_INET };
+	struct addrinfo *res, *ai;
 	struct servent *sp;
-	struct sockaddr_in sin;
+	struct sockaddr *sa;
+	socklen_t salen;
 	static char hostname[MAXHOST+1];
-	struct in_addr inaddr[MAXADDRS];
+	char name[NI_MAXHOST];
+	struct sockaddr_storage inaddr[MAXADDRS];
 	int naddrs;
 	ipaddr_t addr;
+	int status;
 	int sock;
-	register int i;
+	register int i, f;
 
 /*
  * Reset state.
  */
-	(void) memset((char *)&sin, 0, sizeof(sin));
+	(void) memset((char *)inaddr, 0, sizeof(inaddr));
 	CurHostName = NULL;
 
 	errno = 0;
@@ -144,36 +199,43 @@ makeconnection(
  */
 	if (addr != NOT_DOTTED_QUAD)
 	{
-		inaddr[0].s_addr = addr;
+		struct sockaddr_in *sin = (struct sockaddr_in *)&inaddr[0];
+
+		sin->sin_family = AF_INET;
+		sin->sin_addr.s_addr = addr;
 		naddrs = 1;
 
-		hp = gethostbyaddr((char *)&inaddr[0], INADDRSZ, AF_INET);
-		if (hp != NULL)
-			host = ulabel((char *)hp->h_name);
+		if (getnameinfo((struct sockaddr *)sin, sizeof(*sin),
+		    name, sizeof(name), NULL, 0, NI_NAMEREQD) == 0)
+			host = ulabel(name);
 	}
 	else
 	{
-		hp = NULL;
-		if (alabel(host) != NULL)
-			hp = gethostbyname(alabel(host));
-		if (hp == NULL)
+		status = lookup(host, &res);
+		if (status != EX_SUCCESS)
+			return(status);
+
+		if (res->ai_canonname != NULL)
 		{
-			/* cannot contact nameserver, force retry */
-			if (errno == ETIMEDOUT || errno == ECONNREFUSED)
-				h_errno = TRY_AGAIN;
-
-			/* nameserver could not resolve name properly */
-			if (h_errno == TRY_AGAIN)
-				return(EX_TEMPFAIL);
-
-			/* no address found by nameserver */
-			return(EX_NOHOST);
+			(void) strncpy(name, res->ai_canonname, sizeof(name));
+			name[sizeof(name) - 1] = '\0';
+			host = ulabel(name);
 		}
-		host = ulabel((char *)hp->h_name);
 
-		for (i = 0; i < MAXADDRS && hp->h_addr_list[i]; i++)
-			inaddr[i] = incopy(hp->h_addr_list[i]);
-		naddrs = i;
+		naddrs = 0;
+		for (f = 0; f < 2; f++)
+		{
+			for (ai = res; ai != NULL; ai = ai->ai_next)
+			{
+				if (ai->ai_family != family[f] ||
+				    naddrs >= MAXADDRS)
+					continue;
+				(void) memcpy((char *)&inaddr[naddrs],
+					(char *)ai->ai_addr, ai->ai_addrlen);
+				naddrs++;
+			}
+		}
+		freeaddrinfo(res);
 	}
 
 	(void) strncpy(hostname, host, MAXHOST);
@@ -189,18 +251,32 @@ makeconnection(
 
 	for (i = 0; i < naddrs; i++)
 	{
-		sin.sin_family = AF_INET;
-		sin.sin_port = sp->s_port;
-		sin.sin_addr = inaddr[i];
+		sa = (struct sockaddr *)&inaddr[i];
+		if (sa->sa_family == AF_INET6)
+		{
+			salen = sizeof(struct sockaddr_in6);
+			((struct sockaddr_in6 *)sa)->sin6_port = sp->s_port;
+		}
+		else
+		{
+			salen = sizeof(struct sockaddr_in);
+			((struct sockaddr_in *)sa)->sin_port = sp->s_port;
+		}
 
-		sock = socket(AF_INET, SOCK_STREAM, 0);
+		/* the kernel may lack ipv6, and then ipv4 is our hope */
+		sock = socket(sa->sa_family, SOCK_STREAM, 0);
+		if (sock < 0 && errno == EAFNOSUPPORT)
+			continue;
 		if (sock < 0)
 			return(EX_TEMPFAIL);
 
 		if (verbose >= 2 || debug)
 		{
+			if (getnameinfo(sa, salen, name, sizeof(name),
+			    NULL, 0, NI_NUMERICHOST) != 0)
+				(void) strcpy(name, "?");
 			printf("connecting to %s (%s) port %d\n", CurHostName,
-				inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+				name, ntohs(sp->s_port));
 		}
 
 		if (sigsetjmp(Timeout, 1) != 0)
@@ -212,7 +288,7 @@ makeconnection(
 
 		(void) signal(SIGALRM, timer);
 		setalarm(ConnTimeout);
-		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		if (connect(sock, sa, salen) < 0)
 		{
 			int err = errno;
 			setalarm(0);
@@ -296,7 +372,8 @@ int
 getmyhostname(
 	char *hostname)			/* buffer to store host name */
 {
-	struct hostent *hp;
+	struct addrinfo *res;
+	int status;
 
 	errno = 0;
 	h_errno = 0;
@@ -308,23 +385,14 @@ getmyhostname(
 	}
 	hostname[MAXHOST] = '\0';
 
-	hp = gethostbyname(hostname);
-	if (hp == NULL)
-	{
-		/* cannot contact nameserver, force retry */
-		if (errno == ETIMEDOUT || errno == ECONNREFUSED)
-			h_errno = TRY_AGAIN;
+	status = lookup(hostname, &res);
+	if (status != EX_SUCCESS)
+		return(status);
 
-		/* nameserver could not resolve name properly */
-		if (h_errno == TRY_AGAIN)
-			return(EX_TEMPFAIL);
-
-		/* no address found by nameserver */
-		return(EX_NOHOST);
-	}
-
-	(void) strncpy(hostname, hp->h_name, MAXHOST);
+	if (res->ai_canonname != NULL)
+		(void) strncpy(hostname, res->ai_canonname, MAXHOST);
 	hostname[MAXHOST] = '\0';
+	freeaddrinfo(res);
 	return(EX_SUCCESS);
 }
 
@@ -337,10 +405,10 @@ getmyhostname(
 **		FALSE otherwise.
 **
 **	The given name can be a dotted quad, perhaps between
-**	square brackets. If not, an A resource record must exist.
+**	square brackets. If not, an A or AAAA record must exist.
 **
 **	Note that we do not check the status after a negative return
-**	from gethostbyname. Failure can be due to nameserver timeout,
+**	from lookup. Failure can be due to nameserver timeout,
 **	in which case the result is still undecided.
 **	Currently we consider this an error, so that we won't retry
 **	such host during recursive lookups.
@@ -351,7 +419,7 @@ internet(
 	char *host)			/* host name to check */
 {
 	ipaddr_t addr;
-	struct hostent *hp;
+	struct addrinfo *res;
 
 	/* check dotted quad between brackets */
 	addr = numeric_addr(host);
@@ -364,11 +432,11 @@ internet(
 		return(TRUE);
 
 	/* check if nameserver can resolve it */
-	if (alabel(host) == NULL)
-		return(FALSE);
-	hp = gethostbyname(alabel(host));
-	if (hp != NULL)
+	if (lookup(host, &res) == EX_SUCCESS)
+	{
+		freeaddrinfo(res);
 		return(TRUE);
+	}
 
 	/* probably not, but could be nameserver timeout */
 	return(FALSE);
