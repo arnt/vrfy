@@ -44,8 +44,7 @@ static char Version[] = "@(#)pars.c	e07@nikhef.nl (Eric Wassenaar) 961013";
 char *DelimAddr = NULL;		/* position of next address in list */
 
 char *
-parselist(addrspec)
-char *addrspec;
+parselist(char *addrspec)
 {
 	char delimiter;			/* delimiter between addresses */
 	register char *p, *q;
@@ -56,7 +55,7 @@ char *addrspec;
  * The general syntax is "comment: address1, address2;"
  * An empty address list may be specified as "comment:;"
  */
-	p = rindex(addrspec, ';');
+	p = strrchr(addrspec, ';');
 	if (p != NULL && p[1] == '\0')
 	{
 		q = find_delim(addrspec, ':');
@@ -73,8 +72,8 @@ char *addrspec;
  */
 #ifdef notdef
 	delimiter = ' ';
-	if (index(addrspec, ',') != NULL || index(addrspec, '<') != NULL ||
-	    index(addrspec, '(') != NULL || index(addrspec, ';') != NULL)
+	if (strchr(addrspec, ',') != NULL || strchr(addrspec, '<') != NULL ||
+	    strchr(addrspec, '(') != NULL || strchr(addrspec, ';') != NULL)
 #endif
 		delimiter = ',';
 
@@ -125,10 +124,10 @@ char *addrspec;
 */
 
 char *
-parsespec(addrspec, copya, copyd)
-char *addrspec;				/* full address specification */
-char *copya;				/* buffer to store plain address */
-char *copyd;				/* buffer to store domain part */
+parsespec(
+	char *addrspec,			/* full address specification */
+	char *copya,			/* buffer to store plain address */
+	char *copyd)			/* buffer to store domain part */
 {
 	char *address;			/* plain address without comment */
 	char *domain;			/* domain part of address */
@@ -200,8 +199,8 @@ char *copyd;				/* buffer to store domain part */
 */
 
 char *
-parseaddr(addrspec)
-char *addrspec;				/* full address specification */
+parseaddr(
+	char *addrspec)			/* full address specification */
 {
 	register char *address;		/* plain address without comment */
 	static char buf[MAXSPEC+1];	/* saved plain address */
@@ -275,8 +274,8 @@ rescan:
 */
 
 char *
-parsehost(address)
-char *address;				/* plain address without comment */
+parsehost(
+	char *address)			/* plain address without comment */
 {
 	register char *delim;
 
@@ -344,9 +343,9 @@ char *address;				/* plain address without comment */
 */
 
 char *
-find_delim(addrspec, delimiter)
-char *addrspec;				/* full address specification */
-char delimiter;				/* delimiter char to search for */
+find_delim(
+	char *addrspec,			/* full address specification */
+	char delimiter)			/* delimiter char to search for */
 {
 	bool backslash = FALSE;		/* set if need to escape next char */
 	bool quoting = FALSE;		/* set if within quoted string */
@@ -419,8 +418,8 @@ char delimiter;				/* delimiter char to search for */
 */
 
 bool
-invalidaddr(addrspec)
-char *addrspec;				/* address specification */
+invalidaddr(
+	char *addrspec)			/* address specification */
 {
 	bool backslash = FALSE;		/* set if need to escape next char */
 	bool quoting = FALSE;		/* set if within quoted string */
@@ -489,8 +488,8 @@ char *addrspec;				/* address specification */
 */
 
 bool
-invalidhost(domain)
-char *domain;				/* domain name to be checked */
+invalidhost(
+	char *domain)			/* domain name to be checked */
 {
 	register char *p;
 	register int n;
@@ -558,8 +557,7 @@ char *domain;				/* domain name to be checked */
 */
 
 bool
-invalidloop(address)
-char *address;
+invalidloop(char *address)
 {
 	extern char *AddrChain[];	/* addresses in chain */
 	extern int recursion_level;	/* current limit */
@@ -590,10 +588,10 @@ char *address;
 */
 
 char *
-cataddr(buf, address, addrspec)
-char *buf;				/* start of address buffer */
-register char *address;			/* buf position to append to */
-register char *addrspec;		/* address spec to fetch from */
+cataddr(
+	char *buf,			/* start of address buffer */
+	register char *address,		/* buf position to append to */
+	register char *addrspec)	/* address spec to fetch from */
 {
 	/* skip leading whitespace */
 	while (is_space(*addrspec))

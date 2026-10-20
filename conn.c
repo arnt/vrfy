@@ -45,27 +45,30 @@ int ReadTimeout = READTIMEOUT;	/* timeout in secs for read reply */
 **		NULL on error (including timeout).
 */
 
-static jmp_buf Timeout;
+/*
+ * sigsetjmp, because glibc's setjmp does not save the signal mask.
+ * SIGALRM would stay blocked after the first timeout.
+ */
+static sigjmp_buf Timeout;
 
 sigtype_t
 /*ARGSUSED*/
-timer(sig)
-int sig;
+timer(int sig)
 {
-	longjmp(Timeout, 1);
+	siglongjmp(Timeout, 1);
 	/*NOTREACHED*/
 }
 
 
 char *
-sfgets(buf, size, fp)
-char *buf;				/* input buffer */
-int size;				/* size of input buffer */
-FILE *fp;				/* input channel */
+sfgets(
+	char *buf,			/* input buffer */
+	int size,			/* size of input buffer */
+	FILE *fp)			/* input channel */
 {
 	register char *p = NULL;
 
-	if (setjmp(Timeout) != 0)
+	if (sigsetjmp(Timeout, 1) != 0)
 	{
 		errno = ETIMEDOUT;
 		return(NULL);
@@ -102,10 +105,10 @@ FILE *fp;				/* input channel */
 */
 
 int
-makeconnection(host, outfile, infile)
-char *host;				/* host name to connect to */
-FILE **outfile;				/* smtp output channel */
-FILE **infile;				/* smtp input channel */
+makeconnection(
+	char *host,			/* host name to connect to */
+	FILE **outfile,			/* smtp output channel */
+	FILE **infile)			/* smtp input channel */
 {
 	struct hostent *hp;
 	struct servent *sp;
@@ -120,7 +123,7 @@ FILE **infile;				/* smtp input channel */
 /*
  * Reset state.
  */
-	bzero((char *)&sin, sizeof(sin));
+	(void) memset((char *)&sin, 0, sizeof(sin));
 	CurHostName = NULL;
 
 	errno = 0;
@@ -198,7 +201,7 @@ FILE **infile;				/* smtp input channel */
 				inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 		}
 
-		if (setjmp(Timeout) != 0)
+		if (sigsetjmp(Timeout, 1) != 0)
 		{
 			(void) close(sock);
 			errno = ETIMEDOUT;
@@ -258,7 +261,7 @@ FILE **infile;				/* smtp input channel */
 */
 
 void
-setmyhostname()
+setmyhostname(void)
 {
 	static char hostname[MAXHOST+1];
 	int status;
@@ -288,8 +291,8 @@ setmyhostname()
 */
 
 int
-getmyhostname(hostname)
-char *hostname;				/* buffer to store host name */
+getmyhostname(
+	char *hostname)			/* buffer to store host name */
 {
 	struct hostent *hp;
 
@@ -342,8 +345,8 @@ char *hostname;				/* buffer to store host name */
 */
 
 bool
-internet(host)
-char *host;				/* host name to check */
+internet(
+	char *host)			/* host name to check */
 {
 	ipaddr_t addr;
 	struct hostent *hp;
@@ -377,8 +380,8 @@ char *host;				/* host name to check */
 */
 
 ipaddr_t
-numeric_addr(host)
-char *host;				/* host name to check */
+numeric_addr(
+	char *host)			/* host name to check */
 {
 	ipaddr_t addr;
 	register char *p;
@@ -386,7 +389,7 @@ char *host;				/* host name to check */
 	if (host[0] != '[')
 		return(NOT_DOTTED_QUAD);
 
-	p = index(host+1, ']');
+	p = strchr(host+1, ']');
 	if (p == NULL || p[1] != '\0')
 		return(NOT_DOTTED_QUAD);
 

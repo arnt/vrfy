@@ -239,9 +239,7 @@ extern char *version;		/* program version number */
 */
 
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
 	register char *option;
 
@@ -494,10 +492,10 @@ char *argv[];
 */
 
 void
-set_defaults(option, argc, argv)
-char *option;				/* option string */
-int argc;				/* original command line arg count */
-char *argv[];				/* original command line arguments */
+set_defaults(
+	char *option,			/* option string */
+	int argc,			/* original command line arg count */
+	char *argv[])			/* original command line arguments */
 {
 	register char *p, *q;
 	register int i;
@@ -555,11 +553,11 @@ char *argv[];				/* original command line arguments */
 */
 
 int
-getval(optstring, optname, minvalue, maxvalue)
-char *optstring;			/* parameter from command line */
-char *optname;				/* descriptive name of option */
-int minvalue;				/* minimum value for option */
-int maxvalue;				/* maximum value for option */
+getval(
+	char *optstring,		/* parameter from command line */
+	char *optname,			/* descriptive name of option */
+	int minvalue,			/* minimum value for option */
+	int maxvalue)			/* maximum value for option */
 {
 	register int optvalue;
 
@@ -589,12 +587,13 @@ int maxvalue;				/* maximum value for option */
 */
 
 void
-/*VARARGS1*/
-fatal(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+fatal(char *fmt, ...)
 {
-	(void) fprintf(stderr, fmt, a, b, c, d);
+	va_list ap;
+
+	va_start(ap, fmt);
+	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
 	(void) fprintf(stderr, "\n");
 	exit(EX_USAGE);
 }
@@ -608,12 +607,14 @@ char *a, *b, *c, *d;			/* optional arguments */
 **		None.
 */
 
-void /*VARARGS1*/
-error(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+void
+error(char *fmt, ...)
 {
-	(void) fprintf(stderr, fmt, a, b, c, d);
+	va_list ap;
+
+	va_start(ap, fmt);
+	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
 	(void) fprintf(stderr, "\n");
 }
 
@@ -629,20 +630,20 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 void
-/*VARARGS1*/
-usrerr(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+usrerr(char *fmt, ...)
 {
 	char msg[BUFSIZ];		/* status message buffer */
+	va_list ap;
 
 	/* suppress message if requested */
 	if (SuprErrs)
 		return;
 
 	/* issue message with fatal error status */
-	(void) sprintf(msg, "554 %s", fmt);
-	message(msg, a, b, c, d);
+	(void) snprintf(msg, sizeof(msg), "554 %s", fmt);
+	va_start(ap, fmt);
+	vmessage(msg, ap);
+	va_end(ap);
 }
 
 /*
@@ -656,10 +657,19 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 void
-/*VARARGS1*/
-message(msg, a, b, c, d)
-char *msg;				/* status message */
-char *a, *b, *c, *d;			/* optional arguments */
+message(char *msg, ...)
+{
+	va_list ap;
+
+	va_start(ap, msg);
+	vmessage(msg, ap);
+	va_end(ap);
+}
+
+void
+vmessage(
+	char *msg,			/* status message */
+	va_list ap)			/* optional arguments */
 {
 	char *fmt = &msg[4];		/* format of actual message */
 
@@ -676,7 +686,7 @@ char *a, *b, *c, *d;			/* optional arguments */
 		printf("%s ... ", printable(AddrSpec));
 
 	/* print message itself */
-	printf(fmt, a, b, c, d);
+	vprintf(fmt, ap);
 	printf("\n");
 }
 
@@ -701,8 +711,8 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 void
-response(msg)
-char *msg;				/* status message from reply */
+response(
+	char *msg)			/* status message from reply */
 {
 	char *address = &msg[4];	/* address expansion in reply */
 
@@ -746,9 +756,9 @@ char *msg;				/* status message from reply */
 #define tempfail(x) (x == EX_TEMPFAIL || x == EX_OSERR || x == EX_IOERR)
 
 void
-show(status, host)
-int status;				/* result status of operation */
-char *host;				/* remote host that was queried */
+show(
+	int status,			/* result status of operation */
+	char *host)			/* remote host that was queried */
 {
 	/* save result status, keeping previous failures */
 	if (status != EX_SUCCESS && !tempfail(ExitStat))
@@ -789,9 +799,9 @@ char *host;				/* remote host that was queried */
 int recursion_level = 0;	/* current recursion level */
 
 void
-loop(address, host)
-char *address;				/* address we have just verified */
-char *host;				/* remote host that was queried */
+loop(
+	char *address,			/* address we have just verified */
+	char *host)			/* remote host that was queried */
 {
 	char *replylist[MAXREPLY];	/* local copy of replies */
 	int replycount = ReplyCount;	/* number of replies received */
@@ -913,8 +923,8 @@ char *host;				/* remote host that was queried */
 */
 
 void
-file(filename)
-char *filename;				/* name of file to be verified */
+file(
+	char *filename)			/* name of file to be verified */
 {
 	char *addrlist;			/* address list to be verified */
 	int status;			/* result status */
@@ -952,7 +962,7 @@ char *filename;				/* name of file to be verified */
 	}
 
 	/* truncate to basename to shorten message */
-	p = rindex(filename, '/');
+	p = strrchr(filename, '/');
 	if (p++ != NULL)
 		filename = p;
 
@@ -968,7 +978,7 @@ char *filename;				/* name of file to be verified */
 		addrlist = buf;
 
 		/* skip line terminator */
-		p = index(addrlist, '\n');
+		p = strchr(addrlist, '\n');
 		if (p != NULL)
 			*p = '\0';
 
@@ -1018,8 +1028,8 @@ char *filename;				/* name of file to be verified */
 */
 
 void
-list(addrlist)
-char *addrlist;				/* address list to be verified */
+list(
+	char *addrlist)			/* address list to be verified */
 {
 	char *address;			/* single address to be verified */
 	char *host;			/* remote host to be queried */
@@ -1079,9 +1089,9 @@ char *addrlist;				/* address list to be verified */
 */
 
 void
-vrfy(address, host)
-char *address;				/* address to be verified */
-char *host;				/* remote host to be queried */
+vrfy(
+	char *address,			/* address to be verified */
+	char *host)			/* remote host to be queried */
 {
 	char addrbuf[MAXSPEC+1];	/* plain address without comment */
 	char hostbuf[MAXHOST+1];	/* local copy of domain part */
@@ -1216,9 +1226,9 @@ char *host;				/* remote host to be queried */
 */
 
 void
-etrn(domain, name)
-char *domain;				/* remote domain to be etrned */
-char *name;				/* domain name for the ETRN command */
+etrn(
+	char *domain,			/* remote domain to be etrned */
+	char *name)			/* domain name for the ETRN command */
 {
 	char *host;			/* remote host to be queried */
 	int nmx;			/* number of mx hosts found */
@@ -1274,8 +1284,8 @@ char *name;				/* domain name for the ETRN command */
 */
 
 void
-ping(domain)
-char *domain;				/* remote domain to be pinged */
+ping(
+	char *domain)			/* remote domain to be pinged */
 {
 	char *host;			/* remote host to be queried */
 	int nmx;			/* number of mx hosts found */
@@ -1331,9 +1341,9 @@ char *domain;				/* remote domain to be pinged */
 */
 
 int
-verify(address, host)
-char *address;				/* address to be verified */
-char *host;				/* remote host to be queried */
+verify(
+	char *address,			/* address to be verified */
+	char *host)			/* remote host to be queried */
 {
 	int status;			/* result status */
 
@@ -1374,9 +1384,9 @@ char *host;				/* remote host to be queried */
 */
 
 int
-vrfyhost(address, host)
-char *address;				/* address to be verified */
-char *host;				/* remote host to be queried */
+vrfyhost(
+	char *address,			/* address to be verified */
+	char *host)			/* remote host to be queried */
 {
 	register int reply;
 
@@ -1421,9 +1431,9 @@ char *host;				/* remote host to be queried */
 */
 
 int
-expnhost(address, host)
-char *address;				/* address to be verified */
-char *host;				/* remote host to be queried */
+expnhost(
+	char *address,			/* address to be verified */
+	char *host)			/* remote host to be queried */
 {
 	register int reply;
 
@@ -1468,9 +1478,9 @@ char *host;				/* remote host to be queried */
 */
 
 int
-rcpthost(address, host)
-char *address;				/* address to be verified */
-char *host;				/* remote host to be queried */
+rcpthost(
+	char *address,			/* address to be verified */
+	char *host)			/* remote host to be queried */
 {
 	register int reply;
 
@@ -1521,9 +1531,9 @@ char *host;				/* remote host to be queried */
 */
 
 int
-etrnhost(name, host)
-char *name;				/* domain name for the ETRN command */
-char *host;				/* remote host to be queried */
+etrnhost(
+	char *name,			/* domain name for the ETRN command */
+	char *host)			/* remote host to be queried */
 {
 	register int reply;
 
@@ -1562,8 +1572,8 @@ char *host;				/* remote host to be queried */
 */
 
 int
-pinghost(host)
-char *host;				/* remote host to be queried */
+pinghost(
+	char *host)			/* remote host to be queried */
 {
 	register int reply;
 
@@ -1599,8 +1609,8 @@ char *host;				/* remote host to be queried */
 */
 
 int
-getmxhosts(domain)
-char *domain;				/* domain to get mx hosts for */
+getmxhosts(
+	char *domain)			/* domain to get mx hosts for */
 {
 	int nmx;			/* number of mx hosts found */
 	register char *dot;
@@ -1608,7 +1618,7 @@ char *domain;				/* domain to get mx hosts for */
 /*
  * Catch special pseudo-domains that cannot be mapped.
  */
-	dot = rindex(domain, '.');
+	dot = strrchr(domain, '.');
 	if (dot != NULL)
 	{
 		if (sameword(dot, ".uucp"))
@@ -1641,7 +1651,7 @@ char *domain;				/* domain to get mx hosts for */
  * they could default to uucp addresses, bitnet addresses, or just
  * local hosts without an mx record.
  */
-	dot = rindex(domain, '.');
+	dot = strrchr(domain, '.');
 	if (dot == NULL)
 	{
 		MxHosts[0] = singlerelay;
@@ -1665,8 +1675,8 @@ char *domain;				/* domain to get mx hosts for */
 */
 
 char *
-setsender(address)
-char *address;				/* potential envelope sender */
+setsender(
+	char *address)			/* potential envelope sender */
 {
 	static char addrbuf[MAXSPEC+1];	/* parsed plain address */
 	char *domain;			/* domain part of address */

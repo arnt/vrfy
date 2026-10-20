@@ -45,13 +45,13 @@ static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 971113";
 */
 
 void
-fixcrlf(line, stripcr)
-char *line;				/* the input line to fix */
-bool stripcr;				/* also strip CR, if set */
+fixcrlf(
+	char *line,			/* the input line to fix */
+	bool stripcr)			/* also strip CR, if set */
 {
 	register char *p;
 
-	p = index(line, '\n');
+	p = strchr(line, '\n');
 	if (p != NULL)
 	{
 		/* move back to preceding CR if necessary */
@@ -77,10 +77,10 @@ bool stripcr;				/* also strip CR, if set */
 */
 
 char *
-maxstr(string, n, save)
-char *string;				/* the string to check */
-int n;					/* the maximum allowed size */
-bool save;				/* allocate new string, if set */
+maxstr(
+	char *string,			/* the string to check */
+	int n,				/* the maximum allowed size */
+	bool save)			/* allocate new string, if set */
 {
 	if (strlength(string) > n)
 	{
@@ -102,8 +102,8 @@ bool save;				/* allocate new string, if set */
 */
 
 char *
-printable(string)
-char *string;				/* the string to expand */
+printable(
+	char *string)			/* the string to expand */
 {
 	static char buf[BUFSIZ];	/* expanded string buffer */
 	register char *p = buf;
@@ -142,9 +142,9 @@ char *string;				/* the string to expand */
 */
 
 ptr_t *
-xalloc(buf, size)
-register ptr_t *buf;			/* current start of buffer space */
-siz_t size;				/* number of bytes to allocate */
+xalloc(
+	register ptr_t *buf,		/* current start of buffer space */
+	siz_t size)			/* number of bytes to allocate */
 {
 	if (buf == NULL)
 		buf = malloc(size);
@@ -169,8 +169,8 @@ siz_t size;				/* number of bytes to allocate */
 */
 
 char *
-itoa(n)
-int n;					/* value to convert */
+itoa(
+	int n)				/* value to convert */
 {
 	static char buf[30];		/* sufficient for 64-bit values */
 

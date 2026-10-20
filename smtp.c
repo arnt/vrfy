@@ -61,8 +61,8 @@ char *SmtpCrLf = "\r\n";	/* smtp end-of-line terminator */
 */
 
 int
-smtpinit(host)
-char *host;				/* remote host to be contacted */
+smtpinit(
+	char *host)			/* remote host to be contacted */
 {
 	register int r;
 
@@ -107,9 +107,9 @@ char *host;				/* remote host to be contacted */
 */
 
 int
-smtphelo(name, esmtp)
-char *name;				/* my own fully qualified hostname */
-bool esmtp;				/* try EHLO first, if set */
+smtphelo(
+	char *name,			/* my own fully qualified hostname */
+	bool esmtp)			/* try EHLO first, if set */
 {
 	register int r;
 
@@ -145,8 +145,8 @@ bool esmtp;				/* try EHLO first, if set */
 */
 
 int
-smtpehlo(name)
-char *name;				/* my own fully qualified hostname */
+smtpehlo(
+	char *name)			/* my own fully qualified hostname */
 {
 	register int r;
 
@@ -177,7 +177,7 @@ char *name;				/* my own fully qualified hostname */
 */
 
 int
-smtponex()
+smtponex(void)
 {
 	register int r;
 
@@ -205,8 +205,8 @@ smtponex()
 */
 
 int
-smtpverb(onoff)
-char *onoff;				/* some hosts require parameter */
+smtpverb(
+	char *onoff)			/* some hosts require parameter */
 {
 	register int r;
 
@@ -229,8 +229,8 @@ char *onoff;				/* some hosts require parameter */
 */
 
 int
-smtpetrn(name)
-char *name;				/* domain name for the ETRN command */
+smtpetrn(
+	char *name)			/* domain name for the ETRN command */
 {
 	register int r;
 
@@ -259,7 +259,7 @@ char *name;				/* domain name for the ETRN command */
 */
 
 int
-smtprset()
+smtprset(void)
 {
 	register int r;
 
@@ -288,8 +288,8 @@ smtprset()
 */
 
 int
-smtpmail(address)
-char *address;				/* sender address specification */
+smtpmail(
+	char *address)			/* sender address specification */
 {
 	register int r;
 
@@ -330,8 +330,8 @@ char *address;				/* sender address specification */
 */
 
 int
-smtprcpt(address)
-char *address;				/* recipient address specification */
+smtprcpt(
+	char *address)			/* recipient address specification */
 {
 	register int r;
 
@@ -372,8 +372,8 @@ char *address;				/* recipient address specification */
 */
 
 int
-smtpexpn(address)
-char *address;				/* address to be verified */
+smtpexpn(
+	char *address)			/* address to be verified */
 {
 	register int r;
 
@@ -416,8 +416,8 @@ char *address;				/* address to be verified */
 */
 
 int
-smtpvrfy(address)
-char *address;				/* address to be verified */
+smtpvrfy(
+	char *address)			/* address to be verified */
 {
 	register int r;
 
@@ -460,7 +460,7 @@ char *address;				/* address to be verified */
 */
 
 int
-smtpdata()
+smtpdata(void)
 {
 	register int r;
 
@@ -526,7 +526,7 @@ smtpdata()
 */
 
 int
-smtpbody()
+smtpbody(void)
 {
 	return(EX_SUCCESS);
 }
@@ -543,7 +543,7 @@ smtpbody()
 */
 
 int
-smtpquit()
+smtpquit(void)
 {
 	int SaveErrno = SmtpErrno;	/* save across recursive calls */
 	char *SavePhase = SmtpPhase;	/* save across recursive calls */
@@ -592,15 +592,16 @@ smtpquit()
 */
 
 void
-/*VARARGS1*/
-smtpmessage(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+smtpmessage(char *fmt, ...)
 {
+	va_list ap;
+
 	if (SmtpOut != NULL)
 	{
 		/* construct the output message */
-		(void) sprintf(SmtpMsgBuffer, fmt, a, b, c, d);
+		va_start(ap, fmt);
+		(void) vsnprintf(SmtpMsgBuffer, sizeof(SmtpMsgBuffer), fmt, ap);
+		va_end(ap);
 
 		/* display the output in verbose mode */
 		if (verbose >= 2 || debug)
@@ -628,9 +629,9 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 int
-smtpreply(phase, check)
-char *phase;				/* new connection state message */
-bool check;				/* process response, if set */
+smtpreply(
+	char *phase,			/* new connection state message */
+	bool check)			/* process response, if set */
 {
 	register int r;
 	register char *p;

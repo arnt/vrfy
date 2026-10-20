@@ -12,6 +12,7 @@
 #undef  notyet			/* new code for possible future use */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -32,16 +33,6 @@
 #include "exit.h"		/* exit codes come from <sysexits.h> */
 
 #define NOT_DOTTED_QUAD	((ipaddr_t)-1)
-
-#ifdef lint
-#define EXTERN
-#else
-#define EXTERN extern
-#endif
-
-EXTERN int errno;
-EXTERN int h_errno;		/* defined in the resolver library */
-EXTERN res_state_t _res;	/* defined in res_init.c */
 
 #include "defs.h"		/* declarations of functions */
 

@@ -62,8 +62,8 @@ char *dbprefix = DBPREFIX;	/* prefix for debug messages to stdout */
 */
 
 int
-getmxbyname(domain)
-char *domain;				/* domain to get mx hosts for */
+getmxbyname(
+	char *domain)			/* domain to get mx hosts for */
 {
 	querybuf answer;		/* answer buffer from nameserver */
 	HEADER *hp;			/* answer buffer header */
@@ -137,21 +137,21 @@ char *domain;				/* domain to get mx hosts for */
 			(void) p_rr((qbuf_t *)cp, (qbuf_t *)msg, stdout);
 #endif /*obsolete*/
 
-		n = dn_expand(msg, eom, cp, (nbuf_t *)bp, MAXHOST);
+		n = dn_expand(msg, eom, cp, (char *)bp, MAXHOST);
 		if (n < 0)
 			break;
 		cp += n;
 
-		type = _getshort(cp);
+		type = ns_get16(cp);
  		cp += INT16SZ;
 
-		class = _getshort(cp);
+		class = ns_get16(cp);
  		cp += INT16SZ;
 
-		/* ttl = _getlong(cp); */
+		/* ttl = ns_get32(cp); */
  		cp += INT32SZ;
 
-		dlen = _getshort(cp);
+		dlen = ns_get16(cp);
 		cp += INT16SZ;
 
 		if (type != T_MX || class != C_IN) 
@@ -160,10 +160,10 @@ char *domain;				/* domain to get mx hosts for */
 			continue;
 		}
 
-		pref = _getshort(cp);
+		pref = ns_get16(cp);
 		cp += INT16SZ;
 
-		n = dn_expand(msg, eom, cp, (nbuf_t *)bp, MAXHOST);
+		n = dn_expand(msg, eom, cp, (char *)bp, MAXHOST);
 		if (n < 0)
 			break;
 		cp += n;

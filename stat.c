@@ -24,11 +24,6 @@ static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 970926";
 
 #include "vrfy.h"
 
-#if !defined(ERRLIST_DEFINED)
-extern char *sys_errlist[];
-extern int sys_nerr;
-#endif
-
 extern int SmtpErrno;		/* saved errno from system calls */
 extern char *SmtpPhase;		/* connection state message */
 extern char *CurHostName;	/* remote host that is being contacted */
@@ -74,8 +69,8 @@ static int N_SysEx = sizeof(SysExMsg) / sizeof(SysExMsg[0]);
 */
 
 char *
-statstring(stat)
-int stat;				/* result status */
+statstring(
+	int stat)			/* result status */
 {
 	static char buf[BUFSIZ];
 
@@ -104,8 +99,8 @@ int stat;				/* result status */
 */
 
 char *
-errstring(err)
-int err;				/* errno from system calls */
+errstring(
+	int err)			/* errno from system calls */
 {
 	static char buf[BUFSIZ];
 
@@ -117,7 +112,7 @@ int err;				/* errno from system calls */
 		if (err == ECONNRESET)
 			(void) strcpy(buf, "Connection reset");
 		else
-			(void) strcpy(buf, sys_errlist[err]);
+			(void) strcpy(buf, strerror(err));
 		if (SmtpPhase != NULL)
 		{
 			(void) strcat(buf, " during ");
@@ -146,8 +141,8 @@ int err;				/* errno from system calls */
 		return(buf);
 	}
 
-	if (err > 0 && err < sys_nerr)
-		return((char *)sys_errlist[err]);
+	if (err > 0)
+		return(strerror(err));
 
 	(void) sprintf(buf, "Error %d", err);
 	return(buf);
@@ -162,8 +157,8 @@ int err;				/* errno from system calls */
 */
 
 void
-giveresponse(stat)
-int stat;				/* result status */
+giveresponse(
+	int stat)			/* result status */
 {
 	char buf[BUFSIZ];
 	register char *p;
